@@ -1,5 +1,9 @@
 # reddit-mcp
 
+[![CI](https://github.com/brettadams0/reddit-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/brettadams0/reddit-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](package.json)
+
 An MCP server over the Reddit API, backed by a self-owned OAuth2 app. Unlike the
 read-only servers in this set, this one **can act as the account** — post, comment,
 vote, and send private messages — so it is worth being deliberate about what you
