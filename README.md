@@ -11,19 +11,6 @@ ask it to do.
 
 Runs over stdio, registered in `~/.claude.json` as `reddit`.
 
-## Install
-
-```bash
-claude mcp add reddit -- npx -y @brettadams0/reddit-mcp
-```
-
-You also need a Reddit OAuth app and one run of `npm run authorize` (see Setup).
-
-Published as [`@brettadams0/reddit-mcp`](https://www.npmjs.com/package/@brettadams0/reddit-mcp).
-The scope is there because the unscoped name was already taken on npm by an
-unrelated package. Cloning this repo and pointing `claude mcp add` at
-`src/index.js` works identically.
-
 ## Tools
 
 **Read**

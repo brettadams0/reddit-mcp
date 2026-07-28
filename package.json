@@ -1,8 +1,8 @@
 {
-  "name": "@brettadams0/reddit-mcp",
+  "name": "reddit-mcp",
   "version": "1.0.0",
   "type": "module",
-  "description": "MCP server for the Reddit API — read, post, comment, vote and message via a self-owned OAuth2 app",
+  "description": "MCP server for the Reddit API \u2014 read, post, comment, vote and message via a self-owned OAuth2 app",
   "main": "src/index.js",
   "scripts": {
     "authorize": "node scripts/authorize.js",
@@ -44,7 +44,5 @@
   "bugs": {
     "url": "https://github.com/brettadams0/reddit-mcp/issues"
   },
-  "publishConfig": {
-    "access": "public"
-  }
+  "private": true
 }
