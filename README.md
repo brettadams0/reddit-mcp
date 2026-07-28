@@ -46,6 +46,39 @@ npm run authorize    # one-time browser consent, writes credentials/token.json
 npm run check-auth   # verify the stored token still works
 ```
 
+## Setup
+
+Requires Node 20+.
+
+1. Create a **script** app at [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps).
+2. Save its id and secret to `credentials/client_secret.json` — see
+   `credentials/client_secret.example.json` for the shape. `credentials/` is
+   git-ignored.
+3. Identify yourself to Reddit. The default User-Agent contains a placeholder,
+   and Reddit throttles generic agents hard, so set one of:
+
+   ```bash
+   REDDIT_USERNAME=your_reddit_username        # fills in the /u/ segment
+   REDDIT_USER_AGENT="platform:app:v1.0.0 (by /u/you)"   # or replace it wholesale
+   ```
+
+4. Authorize and register:
+
+   ```bash
+   npm ci
+   npm run authorize
+   claude mcp add reddit -- node <path>/reddit-mcp/src/index.js
+   ```
+
+## Tests
+
+```bash
+npm test
+```
+
+Registration, the fullname-prefix helper, and User-Agent construction. No
+network and no credentials, so it is safe in CI.
+
 ## Layout
 
 ```

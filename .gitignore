@@ -1,2 +1,11 @@
+# Real client secrets and minted tokens. Never commit.
+# `credentials/*` rather than `credentials/`: git cannot re-include a file with
+# `!` when its parent directory itself is excluded, and the example is tracked.
+credentials/*
+!credentials/*.example.json
+
 node_modules/
-credentials/
+*.log
+.env
+.env.*
+.DS_Store

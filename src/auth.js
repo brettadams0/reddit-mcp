@@ -9,9 +9,13 @@ export const CLIENT_SECRET_PATH = path.join(CREDENTIALS_DIR, 'client_secret.json
 export const TOKEN_PATH = path.join(CREDENTIALS_DIR, 'token.json');
 
 // Reddit requires every API consumer to send a distinctive User-Agent or it
-// aggressively rate-limits/blocks the default one. Replace <reddit-username>
-// with the Reddit account this app is registered under.
-export const USER_AGENT = 'windows:reddit-mcp:v1.0.0 (by /u/<reddit-username>)';
+// aggressively rate-limits/blocks the default one. Set REDDIT_USERNAME to the
+// account this app is registered under, or override the whole string with
+// REDDIT_USER_AGENT. The placeholder fallback still works, but Reddit treats
+// it as generic traffic and will throttle it.
+export const USER_AGENT =
+  process.env.REDDIT_USER_AGENT ||
+  `windows:reddit-mcp:v1.0.0 (by /u/${process.env.REDDIT_USERNAME || '<reddit-username>'})`;
 
 export const TOKEN_ENDPOINT = 'https://www.reddit.com/api/v1/access_token';
 export const API_BASE = 'https://oauth.reddit.com';

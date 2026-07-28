@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20.x', '22.x']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+
+      # Registration and pure helpers only: no network, no credentials. The
+      # test file is named explicitly because a directory argument to
+      # `node --test` fails on Linux and bare `node --test` would sweep in
+      # anything else that looks like a test.
+      - run: npm test
+
+      - name: Assert no real credentials are tracked
+        run: |
+          leaked=$(git ls-files 'credentials/*' | grep -v '\.example\.json$' || true)
+          if [ -n "$leaked" ]; then
+            echo "::error::Tracked credential file(s): $leaked"
+            exit 1
+          fi
+          echo "OK: only example credentials are tracked."
+          git ls-files credentials/ || echo "(no credentials directory)"

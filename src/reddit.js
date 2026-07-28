@@ -6,7 +6,7 @@ function json(data) {
 }
 
 // Reddit "fullname" ids are prefixed by type: t1_ comment, t3_ link/post, t4_ message, t2_ user.
-function withKindPrefix(id, prefix) {
+export function withKindPrefix(id, prefix) {
   return id.startsWith(`${prefix}_`) ? id : `${prefix}_${id}`;
 }
 

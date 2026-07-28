@@ -8,7 +8,8 @@
   "scripts": {
     "authorize": "node scripts/authorize.js",
     "check-auth": "node scripts/check-token.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test test/tools.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
