@@ -1,0 +1,17 @@
+{
+  "name": "reddit-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Personal MCP server for Reddit, backed by a self-owned Reddit OAuth2 app (read, search, post, comment, vote, private messages).",
+  "main": "src/index.js",
+  "scripts": {
+    "authorize": "node scripts/authorize.js",
+    "check-auth": "node scripts/check-token.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}
