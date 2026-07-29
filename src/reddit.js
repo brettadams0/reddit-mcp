@@ -23,7 +23,12 @@ const TIME = z
 export function registerRedditTools(server) {
   server.registerTool(
     'reddit_get_me',
-    { title: 'Get authorized Reddit account', description: 'Profile of the Reddit account this server is authorized as.', inputSchema: {} },
+    {
+      title: 'Get authorized Reddit account',
+      description: 'Profile of the Reddit account this server is authorized as.',
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {},
+    },
     async () => json(await redditFetch('/api/v1/me'))
   );
 
@@ -31,6 +36,7 @@ export function registerRedditTools(server) {
     'reddit_search',
     {
       title: 'Search Reddit',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description: 'Search posts across Reddit or within a specific subreddit.',
       inputSchema: {
         query: z.string().describe('Search terms. Supports Reddit search syntax such as author:name or flair:"text".'),
@@ -52,6 +58,7 @@ export function registerRedditTools(server) {
     'reddit_get_subreddit_posts',
     {
       title: 'Get subreddit posts',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description: 'List posts from a subreddit feed (hot, new, top, rising).',
       inputSchema: {
         subreddit: SUBREDDIT,
@@ -68,6 +75,7 @@ export function registerRedditTools(server) {
     'reddit_get_post',
     {
       title: 'Get a post with comments',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description: 'Fetch a post (submission) and its comment tree by post id (t3_... or bare id) or subreddit+id.',
       inputSchema: {
         subreddit: SUBREDDIT,
@@ -85,6 +93,7 @@ export function registerRedditTools(server) {
     'reddit_get_user',
     {
       title: 'Get a Reddit user profile',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description: "Public profile info (karma, trophies, account age) for a username.",
       inputSchema: { username: USERNAME },
     },
@@ -95,6 +104,7 @@ export function registerRedditTools(server) {
     'reddit_get_user_activity',
     {
       title: 'Get a user\'s posts or comments',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description: "List a user's submitted posts, comments, or both (overview).",
       inputSchema: {
         username: USERNAME,
@@ -113,6 +123,7 @@ export function registerRedditTools(server) {
     'reddit_submit_post',
     {
       title: 'Submit a post',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: 'Creates a real post in a subreddit immediately. No confirmation step.',
       inputSchema: {
         subreddit: SUBREDDIT,
@@ -141,6 +152,7 @@ export function registerRedditTools(server) {
     'reddit_submit_comment',
     {
       title: 'Submit a comment / reply',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: 'Posts a real comment reply to a post or comment immediately. No confirmation step.',
       inputSchema: {
         parentId: z.string().describe('Fullname of the post (t3_...) or comment (t1_...) being replied to. The type prefix is required here.'),
@@ -155,6 +167,8 @@ export function registerRedditTools(server) {
     'reddit_vote',
     {
       title: 'Vote on a post or comment',
+      // Idempotent: re-sending the same direction leaves the vote as it is.
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       description: 'Casts an upvote, downvote, or clears a vote immediately.',
       inputSchema: {
         id: z.string().describe('Fullname (t1_ comment or t3_ post). The type prefix is required here.'),
@@ -172,6 +186,7 @@ export function registerRedditTools(server) {
     'reddit_get_inbox',
     {
       title: 'Read private messages / inbox',
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description: 'Lists inbox items: private messages, comment replies, and mentions.',
       inputSchema: {
         filter: z
@@ -188,6 +203,7 @@ export function registerRedditTools(server) {
     'reddit_send_message',
     {
       title: 'Send a private message',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: 'Sends a real private message to a user immediately. No confirmation step.',
       inputSchema: {
         to: z.string().describe('Recipient username without the "u/" prefix, or "/r/<subreddit>" to message a subreddit\'s moderators.'),
@@ -203,6 +219,7 @@ export function registerRedditTools(server) {
     'reddit_mark_read',
     {
       title: 'Mark inbox messages read',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       description: 'Marks one or more inbox items as read.',
       inputSchema: { ids: z.array(z.string()).describe('Fullnames, e.g. t4_... for messages') },
     },
