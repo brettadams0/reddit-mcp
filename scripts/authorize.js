@@ -27,6 +27,11 @@ async function main() {
   const code = await new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       const url = new URL(req.url, REDIRECT_URI);
+      if (url.pathname !== '/callback') {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
       const error = url.searchParams.get('error');
       const returnedState = url.searchParams.get('state');
       const code = url.searchParams.get('code');
@@ -51,7 +56,9 @@ async function main() {
       }
       res.end('Waiting for authorization...');
     });
-    server.listen(PORT);
+    // Loopback only: the callback carries an authorization code, and nothing
+    // else on the network has any business reaching it.
+    server.listen(PORT, 'localhost');
   });
 
   const tokenRes = await fetch(TOKEN_ENDPOINT, {
@@ -79,7 +86,8 @@ async function main() {
       },
       null,
       2
-    )
+    ),
+    { mode: 0o600 }
   );
   console.log(`Saved token to ${TOKEN_PATH}`);
 }
