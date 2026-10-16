@@ -1,0 +1,424 @@
+{
+  "capabilities": [
+    "tools"
+  ],
+  "prompts": [],
+  "resources": [],
+  "server": {
+    "name": "reddit",
+    "version": "1.1.0"
+  },
+  "snapshotVersion": 1,
+  "tools": [
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Lists inbox items: private messages, comment replies, and mentions.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "filter": {
+            "description": "Which inbox view to read. Defaults to \"inbox\" (everything).",
+            "enum": [
+              "inbox",
+              "unread",
+              "messages",
+              "comments",
+              "sent"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum items to return, 1-100. Defaults to 25.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "reddit_get_inbox"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Profile of the Reddit account this server is authorized as.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {},
+        "type": "object"
+      },
+      "name": "reddit_get_me"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Fetch a post (submission) and its comment tree by post id (t3_... or bare id) or subreddit+id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "commentSort": {
+            "description": "Ordering of the comment tree. Defaults to \"best\".",
+            "enum": [
+              "best",
+              "top",
+              "new",
+              "controversial",
+              "old"
+            ],
+            "type": "string"
+          },
+          "postId": {
+            "description": "Post id, either bare (e.g. \"1abc2de\") or the t3_-prefixed fullname. The t3_ prefix is stripped automatically.",
+            "type": "string"
+          },
+          "subreddit": {
+            "description": "Subreddit name without the \"r/\" prefix, e.g. \"mcp\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subreddit",
+          "postId"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_get_post"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List posts from a subreddit feed (hot, new, top, rising).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "feed": {
+            "description": "Which feed to read. Defaults to \"hot\".",
+            "enum": [
+              "hot",
+              "new",
+              "top",
+              "rising"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum items to return, 1-100. Defaults to 25.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "subreddit": {
+            "description": "Subreddit name without the \"r/\" prefix, e.g. \"mcp\".",
+            "type": "string"
+          },
+          "time": {
+            "description": "Time window to restrict results to. Only affects \"top\" and \"controversial\" sorting.",
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month",
+              "year",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "subreddit"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_get_subreddit_posts"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Public profile info (karma, trophies, account age) for a username.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "description": "Reddit username without the \"u/\" prefix, e.g. \"spez\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_get_user"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List a user's submitted posts, comments, or both (overview).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "description": "Which activity to list: \"submitted\" for posts only, \"comments\" for comments only, \"overview\" for both. Defaults to \"overview\".",
+            "enum": [
+              "submitted",
+              "comments",
+              "overview"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum items to return, 1-100. Defaults to 25.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "username": {
+            "description": "Reddit username without the \"u/\" prefix, e.g. \"spez\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_get_user_activity"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Marks one or more inbox items as read.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "ids": {
+            "description": "Inbox item fullnames from reddit_get_inbox: t4_ for private messages, t1_ for comment replies and mentions. A bare id is treated as a message.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_mark_read"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Search posts across Reddit or within a specific subreddit.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "Maximum items to return, 1-100. Defaults to 25.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "query": {
+            "description": "Search terms. Supports Reddit search syntax such as author:name or flair:\"text\".",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Result ordering. Defaults to relevance.",
+            "enum": [
+              "relevance",
+              "hot",
+              "top",
+              "new",
+              "comments"
+            ],
+            "type": "string"
+          },
+          "subreddit": {
+            "description": "Restrict search to this subreddit, name only without the \"r/\" prefix. Omit to search all of Reddit.",
+            "type": "string"
+          },
+          "time": {
+            "description": "Time window to restrict results to. Only affects \"top\" and \"controversial\" sorting.",
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month",
+              "year",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_search"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Sends a real private message to a user immediately. No confirmation step.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "subject": {
+            "description": "Message subject, max 100 characters.",
+            "type": "string"
+          },
+          "text": {
+            "description": "Message body in markdown.",
+            "type": "string"
+          },
+          "to": {
+            "description": "Recipient username without the \"u/\" prefix, or \"/r/<subreddit>\" to message a subreddit's moderators.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "text"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_send_message"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Posts a real comment reply to a post or comment immediately. No confirmation step.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "parentId": {
+            "description": "Fullname of the post (t3_...) or comment (t1_...) being replied to. The type prefix is required here.",
+            "type": "string"
+          },
+          "text": {
+            "description": "Comment body in markdown.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parentId",
+          "text"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_submit_comment"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Creates a real post in a subreddit immediately. No confirmation step.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "subreddit": {
+            "description": "Subreddit name without the \"r/\" prefix, e.g. \"mcp\".",
+            "type": "string"
+          },
+          "text": {
+            "description": "Self-post body (markdown). Omit if using url.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Post title, max 300 characters. Cannot be edited after submission.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Link-post URL. Omit if using text.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subreddit",
+          "title"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_submit_post"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Casts an upvote, downvote, or clears a vote immediately.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "direction": {
+            "description": "\"up\" to upvote, \"down\" to downvote, \"clear\" to remove an existing vote.",
+            "enum": [
+              "up",
+              "down",
+              "clear"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "description": "Fullname (t1_ comment or t3_ post). The type prefix is required here.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "direction"
+        ],
+        "type": "object"
+      },
+      "name": "reddit_vote"
+    }
+  ]
+}
