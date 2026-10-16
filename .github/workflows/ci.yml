@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['20.x', '22.x']
+        node-version: ['20.x', '22.x', '24.x']
 
     steps:
       - uses: actions/checkout@v4
@@ -25,11 +28,20 @@ jobs:
 
       - run: npm ci
 
-      # Registration and pure helpers only: no network, no credentials. The
-      # test file is named explicitly because a directory argument to
-      # `node --test` fails on Linux and bare `node --test` would sweep in
-      # anything else that looks like a test.
+      - run: npm run lint
+
+      # No network, no credentials. The test file is named explicitly because
+      # a directory argument to `node --test` fails on Linux and bare
+      # `node --test` would sweep in anything else that looks like a test.
       - run: npm test
+
+      # Starts the real server over stdio, as an MCP client would, and compares
+      # every tool name, description, schema and annotation against the
+      # committed mcp-surface.json. A surface change has to arrive as a diff to
+      # that file in the same pull request, or this step fails. Listing tools
+      # needs no credentials: auth is only reached when a tool is called.
+      - name: Check the tool surface against mcp-surface.json
+        run: npm run surface
 
       - name: Assert no real credentials are tracked
         run: |

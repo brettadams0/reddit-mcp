@@ -1,0 +1,20 @@
+# Monthly and grouped, so keeping dependencies current costs one pull request a
+# month rather than one per package. Security updates are not on this schedule:
+# GitHub raises those as soon as an advisory lands.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
