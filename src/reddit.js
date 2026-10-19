@@ -1,13 +1,83 @@
 import { z } from 'zod';
 import { redditFetch } from './auth.js';
+import { json, text } from './shared.js';
 
-function json(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+const KIND_NAMES = { t1: 'comment', t2: 'account', t3: 'post', t4: 'message', t5: 'subreddit' };
+
+/**
+ * Normalise an id to a Reddit "fullname": a type prefix plus the base36 id.
+ *
+ * `kinds` lists the types this call accepts. A fullname of any other type is
+ * refused — Reddit's write endpoints answer a wrong-typed id with a quiet 200
+ * and do nothing, so the error has to come from here. A bare id is given
+ * `bareKind` when the call has an obvious default, and refused as ambiguous
+ * when it doesn't.
+ */
+export function toFullname(id, kinds, { bareKind } = {}) {
+  const prefixed = id.match(/^(t[1-5])_([a-z0-9]+)$/i);
+  if (prefixed) {
+    const kind = prefixed[1].toLowerCase();
+    if (!kinds.includes(kind)) {
+      const wanted = kinds.map((k) => `${KIND_NAMES[k]} (${k}_)`).join(' or ');
+      throw new Error(`"${id}" is a ${KIND_NAMES[kind]} id; this call needs a ${wanted} id.`);
+    }
+    return `${kind}_${prefixed[2].toLowerCase()}`;
+  }
+  if (/^[a-z0-9]+$/i.test(id)) {
+    if (!bareKind) {
+      throw new Error(`"${id}" is ambiguous: include the type prefix (${kinds.map((k) => `${k}_`).join(' or ')}).`);
+    }
+    return `${bareKind}_${id.toLowerCase()}`;
+  }
+  throw new Error(`"${id}" is not a Reddit id.`);
 }
 
-// Reddit "fullname" ids are prefixed by type: t1_ comment, t3_ link/post, t4_ message, t2_ user.
-export function withKindPrefix(id, prefix) {
-  return id.startsWith(`${prefix}_`) ? id : `${prefix}_${id}`;
+// A leading reddit.com origin and a trailing slash, as in a pasted link.
+const stripLink = (value) => value.trim().replace(/^https?:\/\/(?:www\.|old\.)?reddit\.com/i, '').replace(/\/$/, '');
+
+// One subreddit: an ordinary name, or a user-profile subreddit "u_<username>".
+const SUBREDDIT_PART = /^(?:[A-Za-z0-9_]{1,21}|u_[A-Za-z0-9_-]{1,20})$/;
+
+/**
+ * Validate a subreddit name for use in a URL path, tolerating the "r/" prefix
+ * Reddit's own docs use everywhere, and a pasted link. Names are interpolated
+ * into the path, and an unchecked "../api/v1/me" would walk out of /r/ to
+ * another endpoint with the account's bearer token attached. "a+b"
+ * multireddits and "all-politics" exclusions are allowed.
+ */
+export function subredditName(name) {
+  const bare = stripLink(name).replace(/^\/?r\//i, '');
+  const valid =
+    bare.split('+').every((part) => SUBREDDIT_PART.test(part)) ||
+    /^(?:all|popular)(?:-[A-Za-z0-9_]{1,21})+$/i.test(bare);
+  if (!valid) {
+    throw new Error(`"${name}" is not a subreddit name. Use letters, digits and underscores, e.g. "mcp".`);
+  }
+  return bare;
+}
+
+/** Validate a username for use in a URL path, tolerating "u/", "/user/" and a pasted link. */
+export function username(name) {
+  const bare = stripLink(name).replace(/^\/?(?:u|user)\//i, '');
+  if (!/^[A-Za-z0-9_-]{1,20}$/.test(bare)) {
+    throw new Error(`"${name}" is not a Reddit username.`);
+  }
+  return bare;
+}
+
+/**
+ * Reddit reports the failure of an api_type=json call as HTTP 200 with the
+ * reasons in json.errors — a misspelt subreddit, a rate limit, a locked
+ * thread. Passing that body through would let the model announce a post that
+ * was never made.
+ */
+export function assertAccepted(data, action) {
+  const errors = data?.json?.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    const reasons = errors.map((e) => (Array.isArray(e) ? e.slice(0, 2).join(': ') : String(e)));
+    throw new Error(`Reddit rejected the ${action}: ${reasons.join('; ')}`);
+  }
+  return data;
 }
 
 // Reddit's own docs use "r/name" everywhere, so a caller passing the prefix is
@@ -48,7 +118,7 @@ export function registerRedditTools(server) {
     },
     async ({ query, subreddit, sort, time, limit }) =>
       json(
-        await redditFetch(subreddit ? `/r/${subreddit}/search` : '/search', {
+        await redditFetch(subreddit ? `/r/${subredditName(subreddit)}/search` : '/search', {
           query: { q: query, sort, t: time, limit: limit ?? 25, restrict_sr: subreddit ? 'true' : undefined },
         })
       )
@@ -68,7 +138,7 @@ export function registerRedditTools(server) {
       },
     },
     async ({ subreddit, feed = 'hot', time, limit }) =>
-      json(await redditFetch(`/r/${subreddit}/${feed}`, { query: { t: time, limit: limit ?? 25 } }))
+      json(await redditFetch(`/r/${subredditName(subreddit)}/${feed}`, { query: { t: time, limit: limit ?? 25 } }))
   );
 
   server.registerTool(
@@ -85,8 +155,10 @@ export function registerRedditTools(server) {
         commentSort: z.enum(['best', 'top', 'new', 'controversial', 'old']).optional().describe('Ordering of the comment tree. Defaults to "best".'),
       },
     },
-    async ({ subreddit, postId, commentSort }) =>
-      json(await redditFetch(`/r/${subreddit}/comments/${postId.replace(/^t3_/, '')}`, { query: { sort: commentSort } }))
+    async ({ subreddit, postId, commentSort }) => {
+      const id = toFullname(postId, ['t3'], { bareKind: 't3' }).slice('t3_'.length);
+      return json(await redditFetch(`/r/${subredditName(subreddit)}/comments/${id}`, { query: { sort: commentSort } }));
+    }
   );
 
   server.registerTool(
@@ -97,7 +169,7 @@ export function registerRedditTools(server) {
       description: "Public profile info (karma, trophies, account age) for a username.",
       inputSchema: { username: USERNAME },
     },
-    async ({ username }) => json(await redditFetch(`/user/${encodeURIComponent(username)}/about`))
+    async (args) => json(await redditFetch(`/user/${username(args.username)}/about`))
   );
 
   server.registerTool(
@@ -115,8 +187,8 @@ export function registerRedditTools(server) {
         limit: LIMIT,
       },
     },
-    async ({ username, kind = 'overview', limit }) =>
-      json(await redditFetch(`/user/${encodeURIComponent(username)}/${kind}`, { query: { limit: limit ?? 25 } }))
+    async ({ kind = 'overview', limit, ...args }) =>
+      json(await redditFetch(`/user/${username(args.username)}/${kind}`, { query: { limit: limit ?? 25 } }))
   );
 
   server.registerTool(
@@ -132,20 +204,20 @@ export function registerRedditTools(server) {
         url: z.string().url().optional().describe('Link-post URL. Omit if using text.'),
       },
     },
-    async ({ subreddit, title, text, url }) =>
-      json(
-        await redditFetch('/api/submit', {
-          method: 'POST',
-          body: {
-            sr: subreddit,
-            title,
-            kind: url ? 'link' : 'self',
-            text: text ?? '',
-            url: url ?? '',
-            api_type: 'json',
-          },
-        })
-      )
+    async ({ subreddit, title, text: body, url }) => {
+      const data = await redditFetch('/api/submit', {
+        method: 'POST',
+        body: {
+          sr: subredditName(subreddit),
+          title,
+          kind: url ? 'link' : 'self',
+          text: body ?? '',
+          url: url ?? '',
+          api_type: 'json',
+        },
+      });
+      return json(assertAccepted(data, 'post'));
+    }
   );
 
   server.registerTool(
@@ -159,8 +231,13 @@ export function registerRedditTools(server) {
         text: z.string().describe('Comment body in markdown.'),
       },
     },
-    async ({ parentId, text }) =>
-      json(await redditFetch('/api/comment', { method: 'POST', body: { thing_id: parentId, text, api_type: 'json' } }))
+    async ({ parentId, text: body }) => {
+      const data = await redditFetch('/api/comment', {
+        method: 'POST',
+        body: { thing_id: toFullname(parentId, ['t3', 't1']), text: body, api_type: 'json' },
+      });
+      return json(assertAccepted(data, 'comment'));
+    }
   );
 
   server.registerTool(
@@ -176,9 +253,10 @@ export function registerRedditTools(server) {
       },
     },
     async ({ id, direction }) => {
+      const fullname = toFullname(id, ['t3', 't1']);
       const dir = direction === 'up' ? '1' : direction === 'down' ? '-1' : '0';
-      await redditFetch('/api/vote', { method: 'POST', body: { id, dir } });
-      return { content: [{ type: 'text', text: `Voted ${direction} on ${id}` }] };
+      await redditFetch('/api/vote', { method: 'POST', body: { id: fullname, dir } });
+      return text(`Voted ${direction} on ${fullname}`);
     }
   );
 
@@ -211,8 +289,10 @@ export function registerRedditTools(server) {
         text: z.string().describe('Message body in markdown.'),
       },
     },
-    async ({ to, subject, text }) =>
-      json(await redditFetch('/api/compose', { method: 'POST', body: { to, subject, text, api_type: 'json' } }))
+    async ({ to, subject, text: body }) => {
+      const data = await redditFetch('/api/compose', { method: 'POST', body: { to, subject, text: body, api_type: 'json' } });
+      return json(assertAccepted(data, 'message'));
+    }
   );
 
   server.registerTool(
@@ -221,11 +301,19 @@ export function registerRedditTools(server) {
       title: 'Mark inbox messages read',
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       description: 'Marks one or more inbox items as read.',
-      inputSchema: { ids: z.array(z.string()).describe('Fullnames, e.g. t4_... for messages') },
+      inputSchema: {
+        ids: z
+          .array(z.string())
+          .min(1)
+          .describe('Inbox item fullnames from reddit_get_inbox: t4_ for private messages, t1_ for comment replies and mentions. A bare id is treated as a message.'),
+      },
     },
     async ({ ids }) => {
-      await redditFetch('/api/read_message', { method: 'POST', body: { id: ids.map((id) => withKindPrefix(id, 't4')).join(',') } });
-      return { content: [{ type: 'text', text: `Marked ${ids.length} item(s) read` }] };
+      // Comment replies sit in the inbox as t1_ items. These used to be
+      // rewritten to "t4_t1_…", which Reddit ignores without complaint.
+      const fullnames = ids.map((id) => toFullname(id, ['t4', 't1'], { bareKind: 't4' }));
+      await redditFetch('/api/read_message', { method: 'POST', body: { id: fullnames.join(',') } });
+      return text(`Marked ${fullnames.length} item(s) read`);
     }
   );
 }

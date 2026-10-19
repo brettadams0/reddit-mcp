@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { loadClientSecret, CREDENTIALS_DIR, TOKEN_PATH, USER_AGENT, TOKEN_ENDPOINT } from '../src/auth.js';
+import { mkdir } from 'node:fs/promises';
+import { loadClientSecret, saveToken, CREDENTIALS_DIR, TOKEN_PATH, USER_AGENT, TOKEN_ENDPOINT } from '../src/auth.js';
 
 const SCOPES = ['identity', 'read', 'submit', 'edit', 'vote', 'privatemessages', 'mysubreddits', 'history', 'save'];
 
@@ -27,6 +27,11 @@ async function main() {
   const code = await new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       const url = new URL(req.url, REDIRECT_URI);
+      if (url.pathname !== '/callback') {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
       const error = url.searchParams.get('error');
       const returnedState = url.searchParams.get('state');
       const code = url.searchParams.get('code');
@@ -51,7 +56,9 @@ async function main() {
       }
       res.end('Waiting for authorization...');
     });
-    server.listen(PORT);
+    // Loopback only: the callback carries an authorization code, and nothing
+    // else on the network has any business reaching it.
+    server.listen(PORT, 'localhost');
   });
 
   const tokenRes = await fetch(TOKEN_ENDPOINT, {
@@ -69,18 +76,11 @@ async function main() {
   const data = await tokenRes.json();
 
   await mkdir(CREDENTIALS_DIR, { recursive: true });
-  await writeFile(
-    TOKEN_PATH,
-    JSON.stringify(
-      {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        expires_at: Date.now() + data.expires_in * 1000,
-      },
-      null,
-      2
-    )
-  );
+  await saveToken({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: Date.now() + data.expires_in * 1000,
+  });
   console.log(`Saved token to ${TOKEN_PATH}`);
 }
 
