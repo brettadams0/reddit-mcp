@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { loadClientSecret, CREDENTIALS_DIR, TOKEN_PATH, USER_AGENT, TOKEN_ENDPOINT } from '../src/auth.js';
+import { mkdir } from 'node:fs/promises';
+import { loadClientSecret, saveToken, CREDENTIALS_DIR, TOKEN_PATH, USER_AGENT, TOKEN_ENDPOINT } from '../src/auth.js';
 
 const SCOPES = ['identity', 'read', 'submit', 'edit', 'vote', 'privatemessages', 'mysubreddits', 'history', 'save'];
 
@@ -76,19 +76,11 @@ async function main() {
   const data = await tokenRes.json();
 
   await mkdir(CREDENTIALS_DIR, { recursive: true });
-  await writeFile(
-    TOKEN_PATH,
-    JSON.stringify(
-      {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        expires_at: Date.now() + data.expires_in * 1000,
-      },
-      null,
-      2
-    ),
-    { mode: 0o600 }
-  );
+  await saveToken({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: Date.now() + data.expires_in * 1000,
+  });
   console.log(`Saved token to ${TOKEN_PATH}`);
 }
 

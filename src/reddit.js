@@ -32,23 +32,33 @@ export function toFullname(id, kinds, { bareKind } = {}) {
   throw new Error(`"${id}" is not a Reddit id.`);
 }
 
+// A leading reddit.com origin and a trailing slash, as in a pasted link.
+const stripLink = (value) => value.trim().replace(/^https?:\/\/(?:www\.|old\.)?reddit\.com/i, '').replace(/\/$/, '');
+
+// One subreddit: an ordinary name, or a user-profile subreddit "u_<username>".
+const SUBREDDIT_PART = /^(?:[A-Za-z0-9_]{1,21}|u_[A-Za-z0-9_-]{1,20})$/;
+
 /**
  * Validate a subreddit name for use in a URL path, tolerating the "r/" prefix
- * Reddit's own docs use everywhere. Names are interpolated into the path, and
- * an unchecked "../api/v1/me" would walk out of /r/ to another endpoint with
- * the account's bearer token attached. "a+b" multireddit syntax is allowed.
+ * Reddit's own docs use everywhere, and a pasted link. Names are interpolated
+ * into the path, and an unchecked "../api/v1/me" would walk out of /r/ to
+ * another endpoint with the account's bearer token attached. "a+b"
+ * multireddits and "all-politics" exclusions are allowed.
  */
 export function subredditName(name) {
-  const bare = name.replace(/^\/?r\//i, '');
-  if (!bare.split('+').every((part) => /^[A-Za-z0-9_]{1,21}$/.test(part))) {
+  const bare = stripLink(name).replace(/^\/?r\//i, '');
+  const valid =
+    bare.split('+').every((part) => SUBREDDIT_PART.test(part)) ||
+    /^(?:all|popular)(?:-[A-Za-z0-9_]{1,21})+$/i.test(bare);
+  if (!valid) {
     throw new Error(`"${name}" is not a subreddit name. Use letters, digits and underscores, e.g. "mcp".`);
   }
   return bare;
 }
 
-/** Validate a username for use in a URL path, tolerating the "u/" prefix. */
+/** Validate a username for use in a URL path, tolerating "u/", "/user/" and a pasted link. */
 export function username(name) {
-  const bare = name.replace(/^\/?u\//i, '');
+  const bare = stripLink(name).replace(/^\/?(?:u|user)\//i, '');
   if (!/^[A-Za-z0-9_-]{1,20}$/.test(bare)) {
     throw new Error(`"${name}" is not a Reddit username.`);
   }

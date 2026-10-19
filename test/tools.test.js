@@ -142,6 +142,16 @@ test('subreddit names tolerate the r/ prefix and allow a+b multireddits', () => 
   assert.equal(subredditName('pics+AskReddit'), 'pics+AskReddit');
 });
 
+test('subreddit names accept profile subreddits, exclusions and pasted links', () => {
+  assert.equal(subredditName(`u_${'a'.repeat(20)}`), `u_${'a'.repeat(20)}`);
+  assert.equal(subredditName('all-politics-news'), 'all-politics-news');
+  assert.equal(subredditName('r/mcp/'), 'mcp');
+  assert.equal(subredditName('https://www.reddit.com/r/mcp/'), 'mcp');
+  for (const name of ['mcp-x', 'all-../api', 'https://evil.example/r/mcp', 'https://www.reddit.com/../api']) {
+    assert.throws(() => subredditName(name), /is not a subreddit name/, name);
+  }
+});
+
 test('a username that would traverse the path is refused', () => {
   // encodeURIComponent, which this used to rely on, leaves ".." untouched.
   assert.equal(encodeURIComponent('..'), '..');
@@ -149,6 +159,8 @@ test('a username that would traverse the path is refused', () => {
     assert.throws(() => username(name), /is not a Reddit username/, JSON.stringify(name));
   }
   assert.equal(username('u/spez'), 'spez');
+  assert.equal(username('/user/spez/'), 'spez');
+  assert.equal(username('https://old.reddit.com/user/spez'), 'spez');
 });
 
 test('tools reject a hostile path segment before any request is made', async () => {
@@ -218,6 +230,20 @@ test('a token that is not near expiry is used without refreshing', async () => {
     refresh: async () => assert.fail('should not refresh'),
   });
   assert.equal(await store.accessToken(), 'fresh');
+});
+
+test('a refreshed token is kept in memory even when saving it fails', async () => {
+  let refreshes = 0;
+  const store = createTokenStore({
+    load: async () => expiredToken(),
+    save: async () => {
+      throw new Error('EACCES');
+    },
+    refresh: async () => ({ access_token: `a${++refreshes}`, refresh_token: 'r', expires_at: Date.now() + 3_600_000 }),
+  });
+  await assert.rejects(store.accessToken(), /EACCES/);
+  assert.equal(await store.accessToken(), 'a1');
+  assert.equal(refreshes, 1);
 });
 
 test('a failed refresh is retried on the next call rather than cached', async () => {

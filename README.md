@@ -5,10 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](package.json)
 
-An [MCP](https://modelcontextprotocol.io) server over the Reddit API, backed by a self-owned OAuth2 app. Unlike the
-read-only servers in this set, this one **can act as the account** — post, comment,
-vote, and send private messages — so it is worth being deliberate about what you
-ask it to do.
+An [MCP](https://modelcontextprotocol.io) server over the Reddit API, backed by a self-owned OAuth2 app. It **can act as the account** — post,
+comment, vote, and send private messages — so it is worth being deliberate about
+what you ask it to do.
 
 12 tools. Runs locally over stdio.
 
@@ -74,10 +73,10 @@ input validation in the ordinary web-server sense.
 ### Token refresh is single-flight
 
 Clients call tools in parallel. When several calls find the access token
-expired at once, they share one refresh rather than racing — harmless for
-Reddit, which doesn't rotate refresh tokens, but the same code in
-[yahoo-fantasy-mcp](https://github.com/brettadams0/yahoo-fantasy-mcp), where
-the race spends a token, is why it exists.
+expired at once, they share one refresh rather than each starting their own, so
+a burst of tool calls costs one request to Reddit's token endpoint. A refresh
+that Reddit answers with an error, even one sent as HTTP 200, is retried on the
+next call rather than cached.
 
 ## Auth
 

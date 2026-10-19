@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { chmod, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERSION, fetchWithTimeout, responseError } from './shared.js';
@@ -30,6 +30,16 @@ export async function loadClientSecret() {
   return JSON.parse(raw);
 }
 
+/**
+ * Write the token file readable by its owner only. `writeFile`'s `mode` applies
+ * only when it creates the file, so a token.json left at 0644 by an earlier
+ * version is tightened explicitly: its refresh token never expires.
+ */
+export async function saveToken(token) {
+  await writeFile(TOKEN_PATH, JSON.stringify(token, null, 2), { mode: 0o600 });
+  await chmod(TOKEN_PATH, 0o600);
+}
+
 export function basicAuthHeader(clientId, clientSecret) {
   return 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 }
@@ -45,16 +55,25 @@ export function basicAuthHeader(clientId, clientSecret) {
  */
 export function createTokenStore({ load, save, refresh, skewMs = 60_000 }) {
   let token = null;
+  let loading = null;
   let pending = null;
 
   return {
     async accessToken() {
-      token ??= await load();
+      // The first load is shared too, so a slow read can't overwrite a token
+      // another caller has already refreshed. A failed load is not cached.
+      loading ??= load().catch((err) => {
+        loading = null;
+        throw err;
+      });
+      token ??= await loading;
       if (Date.now() >= token.expires_at - skewMs) {
         pending ??= (async () => {
           const next = await refresh(token);
-          await save(next);
+          // Use the new token even if saving it fails: for a provider that
+          // rotates refresh tokens, the old one is already spent.
           token = next;
+          await save(next);
         })().finally(() => {
           pending = null;
         });
@@ -82,6 +101,11 @@ async function refreshWithReddit(current) {
   );
   if (!res.ok) throw await responseError(res, 'Reddit token refresh', TOKEN_ENDPOINT);
   const data = await res.json();
+  // The token endpoint can answer 200 with {"error": ...}. Saving that would
+  // leave an undefined token and a NaN expiry that never triggers a refresh.
+  if (typeof data.access_token !== 'string' || !Number.isFinite(data.expires_in)) {
+    throw new Error(`Reddit token refresh failed: ${data.error ?? 'no access_token in the response'}`);
+  }
   return {
     access_token: data.access_token,
     refresh_token: current.refresh_token, // Reddit doesn't rotate the refresh token
@@ -96,7 +120,7 @@ const tokens = createTokenStore({
     });
     return JSON.parse(raw);
   },
-  save: (token) => writeFile(TOKEN_PATH, JSON.stringify(token, null, 2), { mode: 0o600 }),
+  save: saveToken,
   refresh: refreshWithReddit,
 });
 
