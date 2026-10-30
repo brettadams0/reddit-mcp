@@ -11,9 +11,14 @@ updates:
       npm-minor-and-patch:
         update-types: [minor, patch]
     ignore:
-      # Staying on Zod 3 is a decision, not an oversight. Zod 4 changes the JSON Schema
-      # of the tools this server exposes, and the mcp-surface check in CI fails on it.
-      # Reasoning: https://brettadams0.github.io/mcp/ ("One check at the end of CI").
+      # Zod majors are ignored, and that has a known cost. Zod 3 is affected by
+      # GHSA-mrhx-c7xc-m3w5 (HIGH): an array schema with no length cap can be made
+      # to exhaust memory. The only fix is Zod 4.6.6; there is no Zod 3 backport.
+      # Mitigation: the one array a tool here accepts (reddit_mark_read ids) is capped
+      # at 100, and a test fails CI on any array in mcp-surface.json without a cap.
+      # The real fix is the Zod 4 migration. Zod 4 changes every tool schema here, so
+      # the surface check fails until the snapshot is redone. The five servers on this
+      # harness move together: brettadams0/google-workspace-mcp#19.
       - dependency-name: zod
         update-types: ['version-update:semver-major']
 
