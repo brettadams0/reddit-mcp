@@ -90,6 +90,8 @@ const TIME = z
   .optional()
   .describe('Time window to restrict results to. Only affects "top" and "controversial" sorting.');
 
+export const MAX_MARK_READ_IDS = 100;
+
 export function registerRedditTools(server) {
   server.registerTool(
     'reddit_get_me',
@@ -302,9 +304,14 @@ export function registerRedditTools(server) {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       description: 'Marks one or more inbox items as read.',
       inputSchema: {
+        // Every array a tool accepts has a length cap. On Zod 3, an array with no
+        // cap records one issue per failing element with no limit, so one oversized
+        // argument can run the server out of memory (GHSA-mrhx-c7xc-m3w5; the fix
+        // is Zod 4 only).
         ids: z
           .array(z.string())
           .min(1)
+          .max(MAX_MARK_READ_IDS, `ids accepts at most ${MAX_MARK_READ_IDS} items.`)
           .describe('Inbox item fullnames from reddit_get_inbox: t4_ for private messages, t1_ for comment replies and mentions. A bare id is treated as a message.'),
       },
     },

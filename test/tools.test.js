@@ -1,10 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
-import { assertAccepted, registerRedditTools, subredditName, toFullname, username } from '../src/reddit.js';
+import { z } from 'zod';
+
+import { MAX_MARK_READ_IDS, assertAccepted, registerRedditTools, subredditName, toFullname, username } from '../src/reddit.js';
 import { USER_AGENT, API_BASE, TOKEN_ENDPOINT, createTokenStore } from '../src/auth.js';
 import { REQUEST_TIMEOUT_MS, VERSION, fetchWithTimeout, responseError } from '../src/shared.js';
 
@@ -293,4 +296,33 @@ test('every request carries a timeout, and a timeout reads as one', async () => 
   } finally {
     globalThis.fetch = original;
   }
+});
+
+// GHSA-mrhx-c7xc-m3w5: on Zod 3, an array schema with no length cap records one
+// issue per failing element without limit, so one oversized argument can run
+// the server out of memory. Every array input is capped.
+
+test(`reddit_mark_read refuses more than ${MAX_MARK_READ_IDS} ids and accepts exactly ${MAX_MARK_READ_IDS}`, () => {
+  const { inputSchema } = collectTools().get('reddit_mark_read').config;
+  const errors = (n) => {
+    const ids = Array.from({ length: n }, (_, i) => `t4_${i}`);
+    const result = z.object(inputSchema).safeParse({ ids });
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  };
+  assert.deepEqual(errors(MAX_MARK_READ_IDS + 1), ['ids accepts at most 100 items.']);
+  assert.deepEqual(errors(MAX_MARK_READ_IDS), []);
+});
+
+test('every array a tool accepts carries a length cap', () => {
+  // Walks the JSON Schema each tool actually exposes, so a new uncapped array
+  // fails here however its source is formatted.
+  const uncapped = [];
+  const walk = (node, at) => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'array' && node.maxItems === undefined) uncapped.push(at);
+    for (const [key, value] of Object.entries(node)) walk(value, `${at}/${key}`);
+  };
+  const surface = JSON.parse(readFileSync(new URL('../mcp-surface.json', import.meta.url), 'utf-8'));
+  for (const tool of surface.tools) walk(tool.inputSchema, tool.name);
+  assert.deepEqual(uncapped, []);
 });
