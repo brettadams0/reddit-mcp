@@ -10,6 +10,12 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Staying on Zod 3 is a decision, not an oversight. Zod 4 changes the JSON Schema
+      # of the tools this server exposes, and the mcp-surface check in CI fails on it.
+      # Reasoning: https://brettadams0.github.io/mcp/ ("One check at the end of CI").
+      - dependency-name: zod
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
